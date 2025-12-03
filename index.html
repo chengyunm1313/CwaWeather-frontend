@@ -468,9 +468,9 @@
                 <div></div>
                 <button aria-label="上" onclick="scrollToHero()">▲</button>
                 <div></div>
-                <button aria-label="左" onclick="scrollForecast(-1)">◀</button>
+                <button aria-label="左" onclick="changeCity(-1)">◀</button>
                 <div></div>
-                <button aria-label="右" onclick="scrollForecast(1)">▶</button>
+                <button aria-label="右" onclick="changeCity(1)">▶</button>
                 <div></div>
                 <button aria-label="下" onclick="scrollToForecast()">▼</button>
                 <div></div>
@@ -487,7 +487,7 @@
             </div>
 
             <div class="controller-label">
-                A：重新讀取／ B：隱藏預報／ SELECT：切換溫度顯示／ START：高亮建議／ 方向鍵：跳轉與滑動
+                A：重新讀取／ B：隱藏預報／ SELECT：切換溫度顯示／ START：高亮建議／ 方向鍵：左右換縣市，上下跳轉
             </div>
         </div>
     </div>
@@ -524,6 +524,7 @@
         let forecastVisible = true;
         let allCityData = {};
         let selectedCity = "新北市";
+        let availableCities = [];
 
         function getWeatherIcon(weather) {
             if (!weather) return "🌤️";
@@ -662,7 +663,7 @@
                     if (cityData) allCityData[city] = cityData;
                 });
 
-                const availableCities = Object.keys(allCityData);
+                availableCities = Object.keys(allCityData);
                 if (!availableCities.length) throw new Error("No city data");
 
                 if (!allCityData[selectedCity]) selectedCity = availableCities[0];
@@ -728,9 +729,17 @@
             });
         }
 
+        function changeCity(offset) {
+            if (!availableCities.length) return;
+            const currentIndex = availableCities.indexOf(selectedCity);
+            const nextIndex = (currentIndex + offset + availableCities.length) % availableCities.length;
+            const nextCity = availableCities[nextIndex];
+            selectCity(nextCity);
+        }
+
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft') scrollForecast(-1);
-            if (e.key === 'ArrowRight') scrollForecast(1);
+            if (e.key === 'ArrowLeft') changeCity(-1);
+            if (e.key === 'ArrowRight') changeCity(1);
             if (e.key === 'ArrowUp') scrollToHero();
             if (e.key === 'ArrowDown') scrollToForecast();
             if (e.key.toLowerCase() === 'r') refreshWeather();
