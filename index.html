@@ -45,6 +45,40 @@
             padding: 20px 12px 28px;
         }
 
+        /* 縣市按鈕列 */
+        .city-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 6px 0 16px;
+        }
+
+        .city-btn {
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 2px solid var(--gb-dark);
+            background: #dfe6c2;
+            color: var(--gb-dark);
+            font-weight: 800;
+            font-size: 0.85rem;
+            box-shadow: 0 5px 0 rgba(15, 56, 15, 0.25);
+            transition: transform 0.08s ease, box-shadow 0.15s ease, background 0.2s ease;
+            font-family: 'Press Start 2P', monospace;
+            cursor: pointer;
+        }
+
+        .city-btn:hover,
+        .city-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 3px 0 rgba(15, 56, 15, 0.25);
+        }
+
+        .city-btn.active {
+            background: var(--gb-mid);
+            color: #e9f6c9;
+            box-shadow: 0 6px 0 rgba(15, 56, 15, 0.35);
+        }
+
         .gameboy {
             max-width: 760px;
             margin: 0 auto;
@@ -414,11 +448,14 @@
         </div>
         <div class="screen">
             <div class="status-bar">
-                <div class="location-pill">📍 新北</div>
+                <div id="locationName" class="location-pill">📍 新北市</div>
                 <div id="updateTime" class="update-pill">卡帶時間同步中...</div>
             </div>
 
             <div class="container" id="mainContent" style="display: none;">
+                <div class="section-title">選擇縣市</div>
+                <div id="citySelector" class="city-selector"></div>
+
                 <div id="heroCard"></div>
 
                 <h3 class="section-title">稍後預報</h3>
@@ -456,10 +493,37 @@
     </div>
 
     <script>
-        const API_URL = "https://weather-ps.zeabur.app/api/weather/kaohsiung";
+        const API_URL = "https://weather-ps.zeabur.app/api/weather/all";
+        const ALLOWED_CITY_NAMES = [
+            "基隆市",
+            "臺北市",
+            "新北市",
+            "桃園市",
+            "新竹市",
+            "新竹縣",
+            "苗栗縣",
+            "臺中市",
+            "彰化縣",
+            "南投縣",
+            "雲林縣",
+            "嘉義市",
+            "嘉義縣",
+            "臺南市",
+            "高雄市",
+            "屏東縣",
+            "宜蘭縣",
+            "花蓮縣",
+            "臺東縣",
+            "澎湖縣",
+            "金門縣",
+            "連江縣"
+        ];
+
         let latestData = null;
         let tempMode = "avg";
         let forecastVisible = true;
+        let allCityData = {};
+        let selectedCity = "新北市";
 
         function getWeatherIcon(weather) {
             if (!weather) return "🌤️";
@@ -568,6 +632,21 @@
             document.getElementById('updateTime').textContent = `${month}月${date}日 ${days[dayIndex]}`;
         }
 
+        function renderCityButtons(cityList) {
+            const selector = document.getElementById('citySelector');
+            selector.innerHTML = '';
+
+            cityList.forEach(city => {
+                const btn = document.createElement('button');
+                btn.textContent = city;
+                btn.className = 'city-btn';
+                btn.dataset.city = city;
+                if (city === selectedCity) btn.classList.add('active');
+                btn.onclick = () => selectCity(city);
+                selector.appendChild(btn);
+            });
+        }
+
         async function fetchWeather() {
             try {
                 const delayPromise = new Promise(resolve => setTimeout(resolve, 1500));
@@ -575,13 +654,23 @@
 
                 const [_, json] = await Promise.all([delayPromise, fetchPromise]);
 
-                if (json.success) {
-                    renderWeather(json.data);
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('mainContent').style.display = 'block';
-                } else {
-                    throw new Error("API Error");
-                }
+                if (!json.success || !Array.isArray(json.data)) throw new Error("API Error");
+
+                allCityData = {};
+                ALLOWED_CITY_NAMES.forEach(city => {
+                    const cityData = json.data.find(d => d.city === city);
+                    if (cityData) allCityData[city] = cityData;
+                });
+
+                const availableCities = Object.keys(allCityData);
+                if (!availableCities.length) throw new Error("No city data");
+
+                if (!allCityData[selectedCity]) selectedCity = availableCities[0];
+
+                renderCityButtons(availableCities);
+                selectCity(selectedCity);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
             } catch (e) {
                 console.error(e);
                 alert("傳輸失敗，請重新插拔卡帶！");
@@ -624,6 +713,19 @@
 
         function scrollToForecast() {
             document.getElementById('futureForecasts').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function selectCity(city) {
+            const data = allCityData[city];
+            if (!data) return;
+
+            selectedCity = city;
+            renderWeather(data);
+            document.getElementById('locationName').textContent = `📍 ${city}`;
+
+            document.querySelectorAll('.city-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.city === city);
+            });
         }
 
         document.addEventListener('keydown', (e) => {
